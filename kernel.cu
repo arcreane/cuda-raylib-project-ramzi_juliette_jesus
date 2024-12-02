@@ -14,7 +14,7 @@ int main()
     Color Dark_Green = Color{ 20, 160, 133, 255 };
 
     const int screenWidth = 800;
-    const int screenHeight = 600;
+    const int screenHeight = 600;  
     int ball_x = 100;
     int ball_y = 100;
     int ball_speed_x = 5;
