@@ -11,7 +11,10 @@ struct Particle {
 };
 
 // Constants for controlling the number of particles and interaction forces
-#define MAX_PARTICLES 500  // Number of particles
+#define MAX_PARTICLES 500  // Number of particles 
+// (2000 = 35 FPS)
+// (1000 = 125 FPS)
+// (500 = 140 FPS)
 
 // Attraction/repulsion force constant
 const float FORCE_STRENGTH = 5.0f;  // You can tweak this to adjust force intensity
