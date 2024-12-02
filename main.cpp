@@ -5,6 +5,10 @@
 
 // Constants for controlling the number of particles and interaction forces
 #define MAX_PARTICLES 500
+
+// 2000 = 14 FPS
+// 1000 = 53 FPS
+// 500 = 142 FPS
 const float FORCE_STRENGTH = 5.0f;  // Attraction/repulsion force constant
 const float MIN_DISTANCE = 8.0f;   // Minimum distance for interaction (avoid division by zero)
 const float MAX_DISTANCE = 14.0f;  // Maximum distance for interaction (particles won't affect each other beyond this)
