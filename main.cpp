@@ -12,7 +12,7 @@ struct Particle {
 };
 
 // Constants for controlling the number of particles and interaction forces
-#define MAX_PARTICLES 10  // Number of particles 
+#define MAX_PARTICLES 100  // Number of particles 
 
 // Attraction/repulsion force constant
 const float FORCE_STRENGTH = 5.0f;  // You can tweak this to adjust force intensity
@@ -21,9 +21,10 @@ const float MAX_DISTANCE = 14.0f;  // Maximum distance for interaction (particle
 
 // Maximum particle speed
 const float MAX_SPEED = 4.0f; // Maximum speed for particles
+const float MIN_SPEED = 0.5f; // Maximum speed for particles
 
-// Function to limit the velocity of a particle to the maximum speed
-void CapSpeed(Vector2& velocity, float maxSpeed) {
+// Function to limit the velocity of a particle to the maximum and minimum speeds
+void CapSpeed(Vector2& velocity, float maxSpeed, float minSpeed) {
     // Calculate the magnitude (length) of the velocity vector
     float speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
 
@@ -32,8 +33,13 @@ void CapSpeed(Vector2& velocity, float maxSpeed) {
         velocity.x = (velocity.x / speed) * maxSpeed;
         velocity.y = (velocity.y / speed) * maxSpeed;
     }
-}
 
+    // If the speed is below the minimum speed, normalize and scale the velocity
+    if (speed < minSpeed && speed > 0) {
+        velocity.x = (velocity.x / speed) * minSpeed;
+        velocity.y = (velocity.y / speed) * minSpeed;
+    }
+}
 // Function to calculate the mass based on the radius of the particle
 float CalculateMass(float radius) {
     return radius * radius * radius;  // Proportional to the volume of a sphere
@@ -102,7 +108,7 @@ int main() {
             particles[i].position.y += particles[i].velocity.y;
 
             // Cap the speed of the particles
-            CapSpeed(particles[i].velocity, MAX_SPEED);
+            CapSpeed(particles[i].velocity, MAX_SPEED,MIN_SPEED);
 
             // Bounce off the edges of the screen (left, right, top, bottom)
             if (particles[i].position.x >= screenWidth || particles[i].position.x <= 0) {
