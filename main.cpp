@@ -8,7 +8,7 @@
 const float FORCE_STRENGTH = 5.0f;  // Attraction/repulsion force constant
 const float MIN_DISTANCE = 8.0f;   // Minimum distance for interaction (avoid division by zero)
 const float MAX_DISTANCE = 14.0f;  // Maximum distance for interaction (particles won't affect each other beyond this)
-const float MAX_SPEED = 4.0f;      // Maximum speed for particles
+const float MAX_SPEED = 2.5f;      // Maximum speed for particles
 const float MIN_SPEED = 0.1f;      // Minimum speed for particles
 const float MIN_COLLISION_DISTANCE = 10.0f; // Minimum distance for particles to collide and bounce
 
@@ -119,7 +119,7 @@ int main() {
         ClearBackground(BLACK);
 
         for (int i = 0; i < MAX_PARTICLES; i++) {
-            DrawCircleV(particles[i].position, 5.0f, particles[i].color);
+            DrawCircleV(particles[i].position, 7.0f, particles[i].color);
         }
 
         DrawText(TextFormat("FPS: %i", GetFPS()), 10, 10, 20, WHITE);
