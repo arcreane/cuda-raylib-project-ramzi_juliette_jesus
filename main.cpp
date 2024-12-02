@@ -1,5 +1,4 @@
-// _1_RaylibTutorial.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
+// Ramzi working on CPU
 
 #include <iostream>
 #include <raylib.h>
