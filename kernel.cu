@@ -21,6 +21,8 @@ int main()
     int ball_speed_y = 5;
     int ball_radius = 15;
 
+    // hello
+
     std::cout << "Hello World" << std::endl;
 
     InitWindow(screenWidth, screenHeight, "My first RAYLIB program!");
