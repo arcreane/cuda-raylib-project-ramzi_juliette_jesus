@@ -1,6 +1,6 @@
 #include <raylib.h>
 #include <cstdlib>  // For rand() and srand()
-#include <ctime>    // For time>
+#include <ctime>    // For time
 #include <cmath>    // For sqrt()
 
 // Particle struct definition
@@ -10,13 +10,9 @@ struct Particle {
     Color color;
 };
 
-#define MAX_PARTICLES_9_FPS 4e4 // It gives 9 FPS
-#define MAX_PARTICLES_35_FPS 1e4 // It gives 35 FPS
-
-// Attraction/repulsion force constant
-const float FORCE_STRENGTH = 20.0f; // You can tweak this to adjust force intensity
-const float MIN_DISTANCE = 10.0f;  // Minimum distance for interaction (avoid division by zero)
-const float MAX_DISTANCE = 20.0f; // Maximum distance for interaction (particles won't affect each other beyond this)
+// Constants for Attraction/Repulsion Force
+const float MIN_DISTANCE = 10.0f;   // Minimum distance for interaction (to avoid division by zero)
+const float MAX_DISTANCE = 20.0f;  // Maximum distance for interaction (particles won't affect each other beyond this)
 
 int main() {
     // Set up window
@@ -32,12 +28,12 @@ int main() {
 
     // Particle 1: Moving left to right
     particles[0].position = { 100.0f, screenHeight / 2.0f };
-    particles[0].velocity = { 2.0f, 0.0f };  // Moving right
+    particles[0].velocity = { 3.0f, 0.0f };  // Moving right
     particles[0].color = RED;
 
     // Particle 2: Moving right to left
     particles[1].position = { screenWidth - 100.0f, screenHeight / 2.0f };
-    particles[1].velocity = { -2.0f, 0.0f }; // Moving left
+    particles[1].velocity = { -3.0f, 0.0f }; // Moving left
     particles[1].color = BLUE;
 
     // Set the frame rate
@@ -59,7 +55,7 @@ int main() {
             }
         }
 
-        // Particle interaction (attraction/repulsion)
+        // Particle interaction (repulsion between two particles)
         for (int i = 0; i < 2; i++) {
             for (int j = i + 1; j < 2; j++) {
                 // Calculate the distance between particle i and particle j
@@ -67,21 +63,14 @@ int main() {
                 float dy = particles[j].position.y - particles[i].position.y;
                 float distance = sqrt(dx * dx + dy * dy);
 
+                // Only apply repulsion if the particles are within the interaction range
                 if (distance < MAX_DISTANCE && distance > MIN_DISTANCE) {
-                    // Calculate the force (scaled by inverse of distance)
-                    float force = - FORCE_STRENGTH / distance;
 
-                    // Calculate direction of force (normalize vector)
-                    Vector2 direction = { dx / distance, dy / distance };
-
-                    // Apply force (attraction if particles are far, repulsion if they're very close)
-                    Vector2 forceVector = { direction.x * force, direction.y * force };
-
-                    // Apply attraction/repulsion (inverse direction for repulsion)
-                    particles[i].velocity.x += forceVector.x;
-                    particles[i].velocity.y += forceVector.y;
-                    particles[j].velocity.x -= forceVector.x;  // Opposite direction for the other particle
-                    particles[j].velocity.y -= forceVector.y;  // Opposite direction for the other particle
+                    // Apply the repulsion force to both particles
+                    particles[i].velocity.x *= -1;
+                    particles[i].velocity.y *= -1;
+                    particles[j].velocity.x *= -1;  // Opposite direction for the other particle
+                    particles[j].velocity.y *= -1;  // Opposite direction for the other particle
                 }
             }
         }
