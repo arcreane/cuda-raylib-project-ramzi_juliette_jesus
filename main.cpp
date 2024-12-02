@@ -12,7 +12,7 @@ struct Particle {
 };
 
 // Constants for controlling the number of particles and interaction forces
-#define MAX_PARTICLES 100  // Number of particles 
+#define MAX_PARTICLES 1000  // Number of particles 
 
 // Attraction/repulsion force constant
 const float FORCE_STRENGTH = 5.0f;  // You can tweak this to adjust force intensity
@@ -20,7 +20,7 @@ const float MIN_DISTANCE = 8.0f;   // Minimum distance for interaction (avoid di
 const float MAX_DISTANCE = 14.0f;  // Maximum distance for interaction (particles won't affect each other beyond this)
 
 // Maximum particle speed
-const float MAX_SPEED = 4.0f; // Maximum speed for particles
+const float MAX_SPEED = 8.0f; // Maximum speed for particles
 const float MIN_SPEED = 0.5f; // Maximum speed for particles
 
 // Function to limit the velocity of a particle to the maximum and minimum speeds
