@@ -21,7 +21,7 @@ int main() {
     InitWindow(screenWidth, screenHeight, "Particle Interaction Test");
 
     // Seed the random number generator
-    srand(static_cast<unsigned int>(time(0)));
+    srand(static_cast<unsigned int>(time(0))); 
 
     // Initialize two particles
     Particle particles[2];
