@@ -8,13 +8,11 @@ struct Particle {
     Vector2 position;
     Vector2 velocity;
     Color color;
+    float radius;  // Radius of the particle, which we will use as mass
 };
 
 // Constants for controlling the number of particles and interaction forces
-#define MAX_PARTICLES 500  // Number of particles 
-// (2000 = 35 FPS)
-// (1000 = 125 FPS)
-// (500 = 140 FPS)
+#define MAX_PARTICLES 10  // Number of particles 
 
 // Attraction/repulsion force constant
 const float FORCE_STRENGTH = 5.0f;  // You can tweak this to adjust force intensity
@@ -36,11 +34,47 @@ void CapSpeed(Vector2& velocity, float maxSpeed) {
     }
 }
 
+// Function to calculate the mass based on the radius of the particle
+float CalculateMass(float radius) {
+    return radius * radius * radius;  // Proportional to the volume of a sphere
+}
+
+// Function to handle particle collision and momentum conservation
+void HandleCollision(Particle& p1, Particle& p2) {
+    // Calculate the distance between the particles
+    float dx = p2.position.x - p1.position.x;
+    float dy = p2.position.y - p1.position.y;
+    float distance = sqrt(dx * dx + dy * dy);
+
+    // If the particles are close enough, calculate the collision
+    if (distance < p1.radius + p2.radius) {
+        // Calculate the mass of each particle (using radius as mass)
+        float mass1 = CalculateMass(p1.radius);
+        float mass2 = CalculateMass(p2.radius);
+
+        // Calculate the velocity vectors after collision (Conservation of Momentum)
+        Vector2 v1 = p1.velocity;
+        Vector2 v2 = p2.velocity;
+
+        // For newV1 and newV2, manually scale the x and y components of the vectors.
+        Vector2 newV1 = { (v1.x * (mass1 - mass2) + v2.x * 2 * mass2) / (mass1 + mass2),
+                          (v1.y * (mass1 - mass2) + v2.y * 2 * mass2) / (mass1 + mass2) };
+
+        Vector2 newV2 = { (v2.x * (mass2 - mass1) + v1.x * 2 * mass1) / (mass1 + mass2),
+                          (v2.y * (mass2 - mass1) + v1.y * 2 * mass1) / (mass1 + mass2) };
+
+
+        // Update velocities to conserve momentum
+        p1.velocity = newV1;
+        p2.velocity = newV2;
+    }
+}
+
 int main() {
     // Set up window
     int screenWidth = 1440;
     int screenHeight = 920;
-    InitWindow(screenWidth, screenHeight, "Multiple Particle Interaction");
+    InitWindow(screenWidth, screenHeight, "Multiple Particle Interaction with Momentum Conservation");
 
     // Seed the random number generator
     srand(static_cast<unsigned int>(time(0)));
@@ -52,6 +86,7 @@ int main() {
     for (int i = 0; i < MAX_PARTICLES; i++) {
         particles[i].position = { (float)(rand() % screenWidth), (float)(rand() % screenHeight) };  // Random position
         particles[i].velocity = { (float)(rand() % 5 - 2), (float)(rand() % 5 - 2) };  // Random velocity (-2 to 2)
+        particles[i].radius = (float)(rand() % 10 + 5); // Random radius (5 to 15)
         particles[i].color = Color{ (unsigned char)(rand() % 256), (unsigned char)(rand() % 256),
                                     (unsigned char)(rand() % 256), 255 };  // Random color
     }
@@ -78,30 +113,10 @@ int main() {
             }
         }
 
-        // Particle interaction (attraction/repulsion)
+        // Particle interaction (attraction/repulsion and momentum conservation)
         for (int i = 0; i < MAX_PARTICLES; i++) {
             for (int j = i + 1; j < MAX_PARTICLES; j++) {
-                // Calculate the distance between particle i and particle j
-                float dx = particles[j].position.x - particles[i].position.x;
-                float dy = particles[j].position.y - particles[i].position.y;
-                float distance = sqrt(dx * dx + dy * dy);
-
-                if (distance < MAX_DISTANCE && distance > MIN_DISTANCE) {
-                    // Calculate the force (scaled by inverse of distance)
-                    float force = -FORCE_STRENGTH / distance;
-
-                    // Calculate direction of force (normalize vector)
-                    Vector2 direction = { dx / distance, dy / distance };
-
-                    // Apply force (attraction/repulsion)
-                    Vector2 forceVector = { direction.x * force, direction.y * force };
-
-                    // Apply repulsion force to both particles
-                    particles[i].velocity.x += forceVector.x;
-                    particles[i].velocity.y += forceVector.y;
-                    particles[j].velocity.x -= forceVector.x;  // Opposite direction for the other particle
-                    particles[j].velocity.y -= forceVector.y;  // Opposite direction for the other particle
-                }
+                HandleCollision(particles[i], particles[j]);
             }
         }
 
@@ -111,7 +126,7 @@ int main() {
 
         // Draw all particles
         for (int i = 0; i < MAX_PARTICLES; i++) {
-            DrawCircleV(particles[i].position, 5.0f, particles[i].color);
+            DrawCircleV(particles[i].position, particles[i].radius, particles[i].color);
         }
 
         // Display the FPS in the top-left corner
