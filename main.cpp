@@ -9,7 +9,7 @@ int main() {
     InitWindow(screenWidth, screenHeight, "My first RAYLIB program!");
 
     // Set the frame rate to 60 FPS
-    SetTargetFPS(60);
+    SetTargetFPS(144);
 
     // Main game loop
     while (!WindowShouldClose()) {
