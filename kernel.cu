@@ -8,7 +8,7 @@
 #include <cmath>
 
 // Constants
-#define MAX_PARTICLES 5000  // Maximum number of particles to simulate
+#define MAX_PARTICLES 500  // Maximum number of particles to simulate
 #define BLOCK_SIZE 256      // Number of threads per block for CUDA kernels
 
 /////// CPU Performance Notes //////////
