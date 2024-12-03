@@ -8,7 +8,7 @@
 #include <cmath>
 
 // Constants
-#define MAX_PARTICLES 3000
+#define MAX_PARTICLES 5000
 #define BLOCK_SIZE 256
 
 /////// CPU //////////////////////
@@ -17,7 +17,8 @@
 // 500 = 142 FPS                //
 //////////////////////////////////
 /////// GPU first version ////////
-// 4000 = 66 FPS                //
+// 5000 = 40 FPS                //
+// 4000 = 50 FPS                //
 // 3000 = 66 FPS                //
 // 2000 = 96 FPS                //
 // 1000 = 142 FPS               //
