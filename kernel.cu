@@ -101,12 +101,19 @@ void InitializeParticles(std::vector<Particle>& particles) {
     }
 }
 
-__global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount, bool keyDown, bool keyUp, bool keyLeft, bool keyRight, float maxSpeed) {
+__global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount, bool keyDown, bool keyUp, bool keyLeft, bool keyRight, bool keySpace, bool* pause, float maxSpeed) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Toggle pause state if space is pressed
+    if (i == 0 && keySpace) {
+        *pause = !(*pause);
+    }
+
+    if (*pause) return;  // Skip updates if paused
+
     if (i >= particleCount) return;
 
     Particle& p = particles[i];
-
     if (keyDown) {
         p.velocity = { 0.0f, maxSpeed };
     }
@@ -120,6 +127,7 @@ __global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount,
         p.velocity = { maxSpeed, 0.0f };
     }
 }
+
 
 
 int main() {
@@ -147,6 +155,12 @@ int main() {
     float h_MIN_COLLISION_DISTANCE = 10.0f;
     float h_radius = 7.0f;
 
+    // Pause state
+    bool h_pause = false;  // Host pause state
+    bool* d_pause;         // Device pause state
+    cudaMalloc(&d_pause, sizeof(bool));
+    cudaMemcpy(d_pause, &h_pause, sizeof(bool), cudaMemcpyHostToDevice);
+
     // Copy constants to device
     cudaMemcpyToSymbol(d_screenWidth, &h_screenWidth, sizeof(int));
     cudaMemcpyToSymbol(d_screenHeight, &h_screenHeight, sizeof(int));
@@ -167,8 +181,15 @@ int main() {
         bool keyUp = IsKeyDown(KEY_UP);
         bool keyLeft = IsKeyDown(KEY_LEFT);
         bool keyRight = IsKeyDown(KEY_RIGHT);
+        bool keySpace = IsKeyPressed(KEY_SPACE);  // Check if space is pressed
 
-        if (!pause) {
+        // Update the pause state if SPACE is pressed
+        if (keySpace) {
+            h_pause = !h_pause;  // Toggle pause state on host
+            cudaMemcpy(d_pause, &h_pause, sizeof(bool), cudaMemcpyHostToDevice);  // Sync pause state to device
+        }
+
+        if (!h_pause) {
             int blocks = (MAX_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
             // Update particles on GPU
@@ -180,8 +201,11 @@ int main() {
             cudaDeviceSynchronize();
 
             // Update velocities based on keyboard input
-            CheckKeyBoardInputKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES, keyDown, keyUp, keyLeft, keyRight, h_MAX_SPEED);
+            // Update velocities based on keyboard input
+            CheckKeyBoardInputKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES, keyDown, keyUp, keyLeft, keyRight, keySpace, d_pause, h_MAX_SPEED);
             cudaDeviceSynchronize();
+
+
             // Copy updated particles back to host
             cudaMemcpy(h_particles.data(), d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost);
         }
@@ -196,6 +220,7 @@ int main() {
     }
 
     cudaFree(d_particles);
+    cudaFree(d_pause);
     CloseWindow();
 
     return 0;
