@@ -18,17 +18,47 @@ __constant__ float d_MIN_SPEED;
 __constant__ float d_MIN_COLLISION_DISTANCE;
 __constant__ float d_radius;
 
-bool pause = false;
-#define MAX_PARTICLES 10
+// Constants for display and shape
+int h_screenWidth = 1920;
+int h_screenHeight = 920;
+float h_radius = 7.0f;
+
+// Constants for interaction and collision
+float h_FORCE_STRENGTH = 5.0f; // Attraction/repulsion force constant
+float h_MIN_DISTANCE = 2 * h_radius; // Minimum distance for interaction (avoid division by zero)
+float h_MAX_DISTANCE = 2.8 * h_radius; // Maximum distance for interaction (particles won't affect each other beyond this)
+float h_MAX_SPEED = 2.5f; // Maximum speed for particles
+float h_MIN_SPEED = 0.1f; // Minimum speed for particles
+float h_MIN_COLLISION_DISTANCE = 2.5 * h_radius; // Minimum distance for particles to collide and bounce
+
+// Flag to pause
+bool pause = 0;
+
+#define MAX_PARTICLES 2000
 #define BLOCK_SIZE 256
 
+/////// CPU Performance Notes //////////
+// 2000 = 14 FPS                      //
+// 1000 = 53 FPS                      //
+// 500 = 142 FPS                      //
+////////////////////////////////////////
+/////// GPU First Version 1 Notes //////
+// 5000 = 40 FPS                      //
+// 4000 = 50 FPS                      //
+// 3000 = 66 FPS                      //
+// 2000 = 96 FPS                      //
+// 1000 = 142 FPS                     //
+// 500 = 144 FPS                      //
+////////////////////////////////////////
+
+// Particle struct definition
 struct Particle {
     Vector2 position;
     Vector2 velocity;
     Color color;
 };
 
-// Cap speed of a particle
+// CUDA Kernel to limit the velocity of a particle to the maximum and minimum speeds
 __device__ void CapSpeed(Vector2& velocity, float maxSpeed, float minSpeed) {
     float speed = sqrtf(velocity.x * velocity.x + velocity.y * velocity.y);
     if (speed > maxSpeed) {
@@ -41,7 +71,7 @@ __device__ void CapSpeed(Vector2& velocity, float maxSpeed, float minSpeed) {
     }
 }
 
-// CUDA kernel to update particle positions
+// CUDA Kernel to update the position of the particles and control the collision with the walls
 __global__ void UpdateParticlesKernel(Particle* particles, int particleCount) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= particleCount) return;
@@ -93,10 +123,7 @@ __global__ void HandleInteractionsKernel(Particle* particles, int particleCount)
     }
 }
 
-// Host-side constants
-int h_screenWidth = 1720;
-int h_screenHeight = 920;
-
+// Function to initialize the particles with random values
 void InitializeParticles(std::vector<Particle>& particles) {
     for (Particle& particle : particles) {
         particle.position = { (float)(rand() % h_screenWidth), (float)(rand() % h_screenHeight) };
@@ -105,17 +132,9 @@ void InitializeParticles(std::vector<Particle>& particles) {
     }
 }
 
+// CUDA Kernel to check the Keyboard inputs and define the actions to take
 __global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount, bool keyDown, bool keyUp, bool keyLeft, bool keyRight, bool keySpace, bool* pause, float maxSpeed) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-
-    // Toggle pause state if space is pressed
-    //if (i == 0 && keySpace) {
-    //    *pause = !(*pause);
-    //}
-
-    //if (*pause) return;  // Skip updates if paused
-
-    //if (i >= particleCount) return;
 
     Particle& p = particles[i];
     if (keyDown) {
@@ -139,6 +158,7 @@ __global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount,
 
 int main() {
 
+    // Set up window
     InitWindow(h_screenWidth, h_screenHeight, "Particle Interaction - GPU");
 
     srand(static_cast<unsigned int>(time(0)));
@@ -151,16 +171,6 @@ int main() {
     Particle* d_particles;
     cudaMalloc(&d_particles, MAX_PARTICLES * sizeof(Particle));
     cudaMemcpy(d_particles, h_particles.data(), MAX_PARTICLES * sizeof(Particle), cudaMemcpyHostToDevice);
-
-
-    float h_radius = 7.0f;
-    float h_FORCE_STRENGTH = 5.0f;
-    float h_MIN_DISTANCE = 2 * h_radius;
-    float h_MAX_DISTANCE = 2.8* h_radius;
-    float h_MAX_SPEED = 2.5f;
-    float h_MIN_SPEED = 0.1f;
-    float h_MIN_COLLISION_DISTANCE = 2.5 * h_radius;
-    
 
     // Pause state
     bool h_pause = false;  // Host pause state
@@ -207,7 +217,6 @@ int main() {
             HandleInteractionsKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
             cudaDeviceSynchronize();
 
-            // Update velocities based on keyboard input
             // Update velocities based on keyboard input
             CheckKeyBoardInputKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES, keyDown, keyUp, keyLeft, keyRight, keySpace, d_pause, h_MAX_SPEED);
             cudaDeviceSynchronize();
