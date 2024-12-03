@@ -19,7 +19,7 @@ __constant__ float d_MIN_COLLISION_DISTANCE;
 __constant__ float d_radius;
 
 bool pause = false;
-#define MAX_PARTICLES 2000
+#define MAX_PARTICLES 10
 #define BLOCK_SIZE 256
 
 struct Particle {
@@ -93,9 +93,13 @@ __global__ void HandleInteractionsKernel(Particle* particles, int particleCount)
     }
 }
 
+// Host-side constants
+int h_screenWidth = 1720;
+int h_screenHeight = 920;
+
 void InitializeParticles(std::vector<Particle>& particles) {
     for (Particle& particle : particles) {
-        particle.position = { (float)(rand() % 1440), (float)(rand() % 920) };
+        particle.position = { (float)(rand() % h_screenWidth), (float)(rand() % h_screenHeight) };
         particle.velocity = { (float)(rand() % 5 - 2), (float)(rand() % 5 - 2) };
         particle.color = Color{ (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), 255 };
     }
@@ -134,7 +138,8 @@ __global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount,
 
 
 int main() {
-    InitWindow(1440, 920, "Particle Interaction - GPU");
+
+    InitWindow(h_screenWidth, h_screenHeight, "Particle Interaction - GPU");
 
     srand(static_cast<unsigned int>(time(0)));
 
@@ -147,13 +152,11 @@ int main() {
     cudaMalloc(&d_particles, MAX_PARTICLES * sizeof(Particle));
     cudaMemcpy(d_particles, h_particles.data(), MAX_PARTICLES * sizeof(Particle), cudaMemcpyHostToDevice);
 
-    // Host-side constants
-    int h_screenWidth = 1440;
-    int h_screenHeight = 920;
+
     float h_radius = 7.0f;
     float h_FORCE_STRENGTH = 5.0f;
     float h_MIN_DISTANCE = 2 * h_radius;
-    float h_MAX_DISTANCE = 3.2* h_radius;
+    float h_MAX_DISTANCE = 2.8* h_radius;
     float h_MAX_SPEED = 2.5f;
     float h_MIN_SPEED = 0.1f;
     float h_MIN_COLLISION_DISTANCE = 2.5 * h_radius;
