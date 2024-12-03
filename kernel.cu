@@ -101,31 +101,26 @@ void InitializeParticles(std::vector<Particle>& particles) {
     }
 }
 
-void checkKeyBoardInput(std::vector<Particle>& particles) {
-    if (IsKeyPressed(KEY_DOWN)) {
-        for (Particle& particle : particles) {
-            particle.velocity = { 0.0f, 2.5f };
-        }
+__global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount, bool keyDown, bool keyUp, bool keyLeft, bool keyRight, float maxSpeed) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= particleCount) return;
+
+    Particle& p = particles[i];
+
+    if (keyDown) {
+        p.velocity = { 0.0f, maxSpeed };
     }
-    if (IsKeyPressed(KEY_UP)) {
-        for (Particle& particle : particles) {
-            particle.velocity = { 0.0f, -2.5f };
-        }
+    if (keyUp) {
+        p.velocity = { 0.0f, -maxSpeed };
     }
-    if (IsKeyPressed(KEY_LEFT)) {
-        for (Particle& particle : particles) {
-            particle.velocity = { -2.5f, 0.0f };
-        }
+    if (keyLeft) {
+        p.velocity = { -maxSpeed, 0.0f };
     }
-    if (IsKeyPressed(KEY_RIGHT)) {
-        for (Particle& particle : particles) {
-            particle.velocity = { 2.5f, 0.0f };
-        }
-    }
-    if (IsKeyPressed(KEY_SPACE)) {
-        pause = !pause;
+    if (keyRight) {
+        p.velocity = { maxSpeed, 0.0f };
     }
 }
+
 
 int main() {
     InitWindow(1440, 920, "Particle Interaction - GPU");
@@ -166,7 +161,12 @@ int main() {
     SetTargetFPS(144);
 
     while (!WindowShouldClose()) {
-        checkKeyBoardInput(h_particles);
+
+        // Gather keyboard input
+        bool keyDown = IsKeyDown(KEY_DOWN);
+        bool keyUp = IsKeyDown(KEY_UP);
+        bool keyLeft = IsKeyDown(KEY_LEFT);
+        bool keyRight = IsKeyDown(KEY_RIGHT);
 
         if (!pause) {
             int blocks = (MAX_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE;
@@ -179,6 +179,9 @@ int main() {
             HandleInteractionsKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
             cudaDeviceSynchronize();
 
+            // Update velocities based on keyboard input
+            CheckKeyBoardInputKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES, keyDown, keyUp, keyLeft, keyRight, h_MAX_SPEED);
+            cudaDeviceSynchronize();
             // Copy updated particles back to host
             cudaMemcpy(h_particles.data(), d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost);
         }
