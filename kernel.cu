@@ -11,19 +11,19 @@
 #define MAX_PARTICLES 5000  // Maximum number of particles to simulate
 #define BLOCK_SIZE 256      // Number of threads per block for CUDA kernels
 
-/////// CPU Performance Notes ///////
-// 2000 = 14 FPS                    //
-// 1000 = 53 FPS                    //
-// 500 = 142 FPS                    //
-//////////////////////////////////////
-/////// GPU First Version Notes //////
-// 5000 = 40 FPS                    //
-// 4000 = 50 FPS                    //
-// 3000 = 66 FPS                    //
-// 2000 = 96 FPS                    //
-// 1000 = 142 FPS                   //
-// 500 = 144 FPS                    //
-//////////////////////////////////////
+/////// CPU Performance Notes //////////
+// 2000 = 14 FPS                      //
+// 1000 = 53 FPS                      //
+// 500 = 142 FPS                      //
+////////////////////////////////////////
+/////// GPU First Version 1 Notes //////
+// 5000 = 40 FPS                      //
+// 4000 = 50 FPS                      //
+// 3000 = 66 FPS                      //
+// 2000 = 96 FPS                      //
+// 1000 = 142 FPS                     //
+// 500 = 144 FPS                      //
+////////////////////////////////////////
 
 // Device constants for GPU interaction
 // These are initialized on the host and copied to the GPU using cudaMemcpyToSymbol
