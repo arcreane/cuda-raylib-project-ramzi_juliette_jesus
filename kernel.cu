@@ -27,9 +27,19 @@ struct Particle {
     Color color;
 };
 
-// Function to limit the velocity of a particle to the maximum and minimum speeds
-void CapSpeed(Vector2& velocity, float maxSpeed, float minSpeed) {
-    float speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+// CUDA error check macro
+#define CUDA_CHECK(call) \
+    do { \
+        cudaError_t err = call; \
+        if (err != cudaSuccess) { \
+            fprintf(stderr, "CUDA Error in %s at line %d: %s\n", __FILE__, __LINE__, cudaGetErrorString(err)); \
+            exit(EXIT_FAILURE); \
+        } \
+    } while (0)
+
+// Cap speed of a particle
+__device__ void CapSpeed(float2& velocity, float maxSpeed, float minSpeed) {
+    float speed = sqrtf(velocity.x * velocity.x + velocity.y * velocity.y);
     if (speed > maxSpeed) {
         velocity.x = (velocity.x / speed) * maxSpeed;
         velocity.y = (velocity.y / speed) * maxSpeed;
@@ -40,100 +50,93 @@ void CapSpeed(Vector2& velocity, float maxSpeed, float minSpeed) {
     }
 }
 
-// Function to handle the interaction between particles (attraction/repulsion)
-void HandleInteraction(Particle& p1, Particle& p2) {
-    // Calculate the distance between the two particles
-    float dx = p2.position.x - p1.position.x;
-    float dy = p2.position.y - p1.position.y;
-    float distance = sqrt(dx * dx + dy * dy);
+// Kernel to update particle interactions
+__global__ void UpdateParticleInteractions(Particle* particles, int particleCount, int screenWidth, int screenHeight) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= particleCount) return;
 
-    // Only interact if the particles are within a certain distance range
-    if (distance < MAX_DISTANCE && distance > MIN_DISTANCE) {
-        // Calculate the force (scaled by inverse of distance)
-        float force = -FORCE_STRENGTH / distance;
+    Particle& p1 = particles[i];
+    for (int j = 0; j < particleCount; ++j) {
+        if (i == j) continue;
 
-        // Calculate direction of force (normalize vector)
-        Vector2 direction = { dx / distance, dy / distance };
+        Particle& p2 = particles[j];
+        float dx = p2.position.x - p1.position.x;
+        float dy = p2.position.y - p1.position.y;
+        float distance = sqrtf(dx * dx + dy * dy);
 
-        // Apply force (attraction or repulsion)
-        Vector2 forceVector = { direction.x * force, direction.y * force };
+        if (distance < MAX_DISTANCE && distance > MIN_DISTANCE) {
+            float force = -FORCE_STRENGTH / distance;
+            float2 direction = { dx / distance, dy / distance };
+            p1.velocity.x += direction.x * force;
+            p1.velocity.y += direction.y * force;
+        }
 
-        // Apply the force to the particles
-        p1.velocity.x += forceVector.x;
-        p1.velocity.y += forceVector.y;
-        p2.velocity.x -= forceVector.x;
-        p2.velocity.y -= forceVector.y;
+        if (distance < MIN_COLLISION_DISTANCE) {
+            float2 collisionDirection = { dx / distance, dy / distance };
+            p1.velocity.x -= collisionDirection.x * FORCE_STRENGTH;
+            p1.velocity.y -= collisionDirection.y * FORCE_STRENGTH;
+        }
     }
 
-    // Check if the particles are colliding (too close to each other)
-    if (distance < MIN_COLLISION_DISTANCE) {
-        // Calculate the direction vector for the collision response
-        Vector2 collisionDirection = { dx / distance, dy / distance };
+    // Update position
+    p1.position.x += p1.velocity.x;
+    p1.position.y += p1.velocity.y;
 
-        // Apply repulsive force to both particles
-        p1.velocity.x -= collisionDirection.x * FORCE_STRENGTH;
-        p1.velocity.y -= collisionDirection.y * FORCE_STRENGTH;
-        p2.velocity.x += collisionDirection.x * FORCE_STRENGTH;
-        p2.velocity.y += collisionDirection.y * FORCE_STRENGTH;
-    }
+    // Bounce off screen edges
+    if (p1.position.x >= screenWidth || p1.position.x <= 0) p1.velocity.x *= -1;
+    if (p1.position.y >= screenHeight || p1.position.y <= 0) p1.velocity.y *= -1;
+
+    CapSpeed(p1.velocity, MAX_SPEED, MIN_SPEED);
 }
 
 int main() {
-    // Set up window
     int screenWidth = 1440;
     int screenHeight = 920;
-    InitWindow(screenWidth, screenHeight, "Multiple Particle Interaction");
+    InitWindow(screenWidth, screenHeight, "Particle Interaction - CUDA");
 
     srand(static_cast<unsigned int>(time(0)));
 
-    // Array of particles
-    Particle particles[MAX_PARTICLES];
+    // Host particles
+    Particle* h_particles = new Particle[MAX_PARTICLES];
 
-    // Initialize particles with random properties
+    // Initialize host particles
     for (int i = 0; i < MAX_PARTICLES; i++) {
-        particles[i].position = { (float)(rand() % screenWidth), (float)(rand() % screenHeight) };
-        particles[i].velocity = { (float)(rand() % 5 - 2), (float)(rand() % 5 - 2) };
-        particles[i].color = Color{ (unsigned char)(rand() % 256), (unsigned char)(rand() % 256),
-                                    (unsigned char)(rand() % 256), 255 };
+        h_particles[i].position = { (float)(rand() % screenWidth), (float)(rand() % screenHeight) };
+        h_particles[i].velocity = { (float)(rand() % 5 - 2), (float)(rand() % 5 - 2) };
+        h_particles[i].color = { (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), 255 };
     }
+
+    // Device particles
+    Particle* d_particles;
+    CUDA_CHECK(cudaMalloc(&d_particles, MAX_PARTICLES * sizeof(Particle)));
+    CUDA_CHECK(cudaMemcpy(d_particles, h_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyHostToDevice));
 
     SetTargetFPS(144);
 
     while (!WindowShouldClose()) {
-        for (int i = 0; i < MAX_PARTICLES; i++) {
-            particles[i].position.x += particles[i].velocity.x;
-            particles[i].position.y += particles[i].velocity.y;
+        // Launch kernel
+        int blocks = (MAX_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        UpdateParticleInteractions << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES, screenWidth, screenHeight);
+        CUDA_CHECK(cudaDeviceSynchronize());
 
-            // Cap the speed of the particles (both max and min speed)
-            CapSpeed(particles[i].velocity, MAX_SPEED, MIN_SPEED);
-
-            // Bounce off the edges of the screen (left, right, top, bottom)
-            if (particles[i].position.x >= screenWidth || particles[i].position.x <= 0) {
-                particles[i].velocity.x *= -1;
-            }
-            if (particles[i].position.y >= screenHeight || particles[i].position.y <= 0) {
-                particles[i].velocity.y *= -1;
-            }
-        }
-
-        // Particle interaction (attraction/repulsion and collision)
-        for (int i = 0; i < MAX_PARTICLES; i++) {
-            for (int j = i + 1; j < MAX_PARTICLES; j++) {
-                HandleInteraction(particles[i], particles[j]);
-            }
-        }
+        // Copy updated particles back to host
+        CUDA_CHECK(cudaMemcpy(h_particles, d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost));
 
         BeginDrawing();
         ClearBackground(BLACK);
 
         for (int i = 0; i < MAX_PARTICLES; i++) {
-            DrawCircleV(particles[i].position, 7.0f, particles[i].color);
+            DrawCircleV({ h_particles[i].position.x, h_particles[i].position.y }, 7.0f, Color{ h_particles[i].color.x, h_particles[i].color.y, h_particles[i].color.z, h_particles[i].color.w });
         }
 
         DrawText(TextFormat("FPS: %i", GetFPS()), 10, 10, 20, WHITE);
         EndDrawing();
     }
 
+    // Cleanup
+    delete[] h_particles;
+    CUDA_CHECK(cudaFree(d_particles));
     CloseWindow();
+
     return 0;
 }
