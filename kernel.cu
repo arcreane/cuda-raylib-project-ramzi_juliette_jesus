@@ -105,13 +105,13 @@ __global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount,
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Toggle pause state if space is pressed
-    if (i == 0 && keySpace) {
-        *pause = !(*pause);
-    }
+    //if (i == 0 && keySpace) {
+    //    *pause = !(*pause);
+    //}
 
-    if (*pause) return;  // Skip updates if paused
+    //if (*pause) return;  // Skip updates if paused
 
-    if (i >= particleCount) return;
+    //if (i >= particleCount) return;
 
     Particle& p = particles[i];
     if (keyDown) {
@@ -125,6 +125,9 @@ __global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount,
     }
     if (keyRight) {
         p.velocity = { maxSpeed, 0.0f };
+    }
+    if (keySpace) {
+        *pause = !(*pause);
     }
 }
 
@@ -147,13 +150,14 @@ int main() {
     // Host-side constants
     int h_screenWidth = 1440;
     int h_screenHeight = 920;
+    float h_radius = 7.0f;
     float h_FORCE_STRENGTH = 5.0f;
-    float h_MIN_DISTANCE = 8.0f;
-    float h_MAX_DISTANCE = 14.0f;
+    float h_MIN_DISTANCE = 2 * h_radius;
+    float h_MAX_DISTANCE = 3.2* h_radius;
     float h_MAX_SPEED = 2.5f;
     float h_MIN_SPEED = 0.1f;
-    float h_MIN_COLLISION_DISTANCE = 10.0f;
-    float h_radius = 7.0f;
+    float h_MIN_COLLISION_DISTANCE = 2.5 * h_radius;
+    
 
     // Pause state
     bool h_pause = false;  // Host pause state
