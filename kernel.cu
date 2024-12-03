@@ -8,12 +8,22 @@
 #include <cmath>
 
 // Constants
-#define MAX_PARTICLES 2000
+#define MAX_PARTICLES 3000
 #define BLOCK_SIZE 256
 
-// 2000 = 14 FPS
-// 1000 = 53 FPS
-// 500 = 142 FPS
+/////// CPU //////////////////////
+// 2000 = 14 FPS                //
+// 1000 = 53 FPS                //
+// 500 = 142 FPS                //
+//////////////////////////////////
+/////// GPU first version ////////
+// 4000 = 66 FPS                //
+// 3000 = 66 FPS                //
+// 2000 = 96 FPS                //
+// 1000 = 142 FPS               //
+// 500 = 144 FPS                //
+//////////////////////////////////
+// 
 __constant__ float d_MAX_DISTANCE;
 __constant__ float d_MIN_DISTANCE;
 __constant__ float d_FORCE_STRENGTH;
