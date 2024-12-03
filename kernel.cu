@@ -8,18 +8,18 @@
 #include <cmath>
 
 // Constants
-#define MAX_PARTICLES 500
+#define MAX_PARTICLES 2000
 #define BLOCK_SIZE 256
 
 // 2000 = 14 FPS
 // 1000 = 53 FPS
 // 500 = 142 FPS
-const float FORCE_STRENGTH = 5.0f;  // Attraction/repulsion force constant
-const float MIN_DISTANCE = 8.0f;   // Minimum distance for interaction (avoid division by zero)
-const float MAX_DISTANCE = 14.0f;  // Maximum distance for interaction (particles won't affect each other beyond this)
-const float MAX_SPEED = 2.5f;      // Maximum speed for particles
-const float MIN_SPEED = 0.1f;      // Minimum speed for particles
-const float MIN_COLLISION_DISTANCE = 10.0f; // Minimum distance for particles to collide and bounce
+__constant__ float d_MAX_DISTANCE;
+__constant__ float d_MIN_DISTANCE;
+__constant__ float d_FORCE_STRENGTH;
+__constant__ float d_MIN_COLLISION_DISTANCE;
+__constant__ float d_MAX_SPEED;
+__constant__ float d_MIN_SPEED;
 
 // Particle struct definition
 struct Particle {
@@ -27,16 +27,6 @@ struct Particle {
     Vector2 velocity;
     Color color;
 };
-
-// CUDA error check macro
-#define CUDA_CHECK(call) \
-    do { \
-        cudaError_t err = call; \
-        if (err != cudaSuccess) { \
-            fprintf(stderr, "CUDA Error in %s at line %d: %s\n", __FILE__, __LINE__, cudaGetErrorString(err)); \
-            exit(EXIT_FAILURE); \
-        } \
-    } while (0)
 
 // Cap speed of a particle
 __device__ void CapSpeed(Vector2& velocity, float maxSpeed, float minSpeed) {
@@ -65,17 +55,17 @@ __global__ void UpdateParticleInteractions(Particle* particles, int particleCoun
         float dy = p2.position.y - p1.position.y;
         float distance = sqrtf(dx * dx + dy * dy);
 
-        if (distance < MAX_DISTANCE && distance > MIN_DISTANCE) {
-            float force = -FORCE_STRENGTH / distance;
+        if (distance < d_MAX_DISTANCE && distance > d_MIN_DISTANCE) {
+            float force = -d_FORCE_STRENGTH / distance;
             Vector2 direction = { dx / distance, dy / distance };
             p1.velocity.x += direction.x * force;
             p1.velocity.y += direction.y * force;
         }
 
-        if (distance < MIN_COLLISION_DISTANCE) {
+        if (distance < d_MIN_COLLISION_DISTANCE) {
             Vector2 collisionDirection = { dx / distance, dy / distance };
-            p1.velocity.x -= collisionDirection.x * FORCE_STRENGTH;
-            p1.velocity.y -= collisionDirection.y * FORCE_STRENGTH;
+            p1.velocity.x -= collisionDirection.x * d_FORCE_STRENGTH;
+            p1.velocity.y -= collisionDirection.y * d_FORCE_STRENGTH;
         }
     }
 
@@ -87,10 +77,12 @@ __global__ void UpdateParticleInteractions(Particle* particles, int particleCoun
     if (p1.position.x >= screenWidth || p1.position.x <= 0) p1.velocity.x *= -1;
     if (p1.position.y >= screenHeight || p1.position.y <= 0) p1.velocity.y *= -1;
 
-    CapSpeed(p1.velocity, MAX_SPEED, MIN_SPEED);
+    CapSpeed(p1.velocity, d_MAX_SPEED, d_MIN_SPEED);
 }
 
+
 int main() {
+    // Screen dimensions
     int screenWidth = 1440;
     int screenHeight = 920;
     InitWindow(screenWidth, screenHeight, "Particle Interaction - CUDA");
@@ -106,6 +98,21 @@ int main() {
         h_particles[i].velocity = { (float)(rand() % 5 - 2), (float)(rand() % 5 - 2) };
         h_particles[i].color = { (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), 255 };
     }
+
+    // Initialize constants on the device
+    float h_MAX_DISTANCE = 14.0f;
+    float h_MIN_DISTANCE = 8.0f;
+    float h_FORCE_STRENGTH = 5.0f;
+    float h_MIN_COLLISION_DISTANCE = 10.0f;
+    float h_MAX_SPEED = 2.5f;
+    float h_MIN_SPEED = 0.1f;
+
+    cudaMemcpyToSymbol(d_MAX_DISTANCE, &h_MAX_DISTANCE, sizeof(float));
+    cudaMemcpyToSymbol(d_MIN_DISTANCE, &h_MIN_DISTANCE, sizeof(float));
+    cudaMemcpyToSymbol(d_FORCE_STRENGTH, &h_FORCE_STRENGTH, sizeof(float));
+    cudaMemcpyToSymbol(d_MIN_COLLISION_DISTANCE, &h_MIN_COLLISION_DISTANCE, sizeof(float));
+    cudaMemcpyToSymbol(d_MAX_SPEED, &h_MAX_SPEED, sizeof(float));
+    cudaMemcpyToSymbol(d_MIN_SPEED, &h_MIN_SPEED, sizeof(float));
 
     // Device particles
     Particle* d_particles;
