@@ -20,6 +20,7 @@ const float MAX_SPEED = 2.5f;      // Maximum speed for particles
 const float MIN_SPEED = 0.1f;      // Minimum speed for particles
 const float MIN_COLLISION_DISTANCE = 10.0f; // Minimum distance for particles to collide and bounce
 const float radius = 9.0f;
+bool pause = 0;
 // Particle struct definition
 struct Particle {
     Vector2 position;
@@ -133,6 +134,34 @@ void UpdateParticles(vector<Particle>& particles) {
 }
 
 
+void checkKeyBoardInput(vector<Particle>& particles) {
+
+    if (IsKeyPressed(KEY_DOWN)) {
+        for (Particle& particle : particles) {
+            particle.velocity = { 0.0,MAX_SPEED };
+        }
+    }
+    if (IsKeyPressed(KEY_UP)) {
+        for (Particle& particle : particles) {
+            particle.velocity = { 0.0,-MAX_SPEED };
+        }
+    }
+    if (IsKeyPressed(KEY_LEFT)) {
+        for (Particle& particle : particles) {
+            particle.velocity = { -MAX_SPEED,0.0 };
+        }
+    }
+    if (IsKeyPressed(KEY_RIGHT)) {
+        for (Particle& particle : particles) {
+            particle.velocity = { MAX_SPEED,0.0 };
+        }
+    }
+    if (IsKeyPressed(KEY_SPACE)) {
+        pause = !pause;
+    }
+
+}
+
 int main() {
     // Set up window
     InitWindow(screenWidth, screenHeight, "Multiple Particle Interaction");
@@ -149,12 +178,16 @@ int main() {
 
     while (!WindowShouldClose()) {
 
-        UpdateParticles(particles);
+        checkKeyBoardInput(particles);
+        if (!pause) {
 
-        // Particle interaction (attraction/repulsion and collision)
-        for (int i = 0; i < MAX_PARTICLES; i++) {
-            for (int j = i + 1; j < MAX_PARTICLES; j++) {
-                HandleInteraction(particles[i], particles[j]);
+            UpdateParticles(particles);
+
+            // Particle interaction (attraction/repulsion and collision)
+            for (int i = 0; i < MAX_PARTICLES; i++) {
+                for (int j = i + 1; j < MAX_PARTICLES; j++) {
+                    HandleInteraction(particles[i], particles[j]);
+                }
             }
         }
 
