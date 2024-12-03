@@ -6,21 +6,28 @@
 
 using namespace std;
 
-// Constants for controlling the number of particles and interaction forces
+// Constants for controlling the number of particles
 #define MAX_PARTICLES 1000
 // 2000 = 14 FPS
 // 1000 = 53 FPS
 // 500 = 142 FPS
+
+// Constants for display and shape
 const int screenWidth = 1440;
 const int screenHeight = 920;
+const float radius = 9.0f;
+
+// Constants for interaction and collision
 const float FORCE_STRENGTH = 5.0f;  // Attraction/repulsion force constant
 const float MIN_DISTANCE = 8.0f;   // Minimum distance for interaction (avoid division by zero)
 const float MAX_DISTANCE = 14.0f;  // Maximum distance for interaction (particles won't affect each other beyond this)
 const float MAX_SPEED = 2.5f;      // Maximum speed for particles
 const float MIN_SPEED = 0.1f;      // Minimum speed for particles
 const float MIN_COLLISION_DISTANCE = 10.0f; // Minimum distance for particles to collide and bounce
-const float radius = 9.0f;
+
+// Flag to pause
 bool pause = 0;
+
 // Particle struct definition
 struct Particle {
     Vector2 position;
@@ -90,6 +97,7 @@ void HandleInteraction(Particle& p1, Particle& p2) {
     }
 }
 
+//Function to initialize the particles with random values
 void InitializeParticles(vector<Particle>& particles) {
     for (Particle& particle : particles) {
         particle.position = { (float)(rand() % screenWidth), (float)(rand() % screenHeight) };
@@ -99,6 +107,7 @@ void InitializeParticles(vector<Particle>& particles) {
     }
 }
 
+//Function to update the position of the particles and control the collision with the walls
 void UpdateParticles(vector<Particle>& particles) {
 
     for (int i = 0; i < MAX_PARTICLES; i++) {
@@ -133,7 +142,7 @@ void UpdateParticles(vector<Particle>& particles) {
     }
 }
 
-
+//Function to check the Keyboard inputs and define the actions to take
 void checkKeyBoardInput(vector<Particle>& particles) {
 
     if (IsKeyPressed(KEY_DOWN)) {
@@ -162,6 +171,7 @@ void checkKeyBoardInput(vector<Particle>& particles) {
 
 }
 
+
 int main() {
     // Set up window
     InitWindow(screenWidth, screenHeight, "Multiple Particle Interaction");
@@ -178,7 +188,9 @@ int main() {
 
     while (!WindowShouldClose()) {
 
+        //Check the Keyboard
         checkKeyBoardInput(particles);
+
         if (!pause) {
 
             UpdateParticles(particles);
@@ -191,6 +203,7 @@ int main() {
             }
         }
 
+        //Update the frame
         BeginDrawing();
         ClearBackground(BLACK);
 
