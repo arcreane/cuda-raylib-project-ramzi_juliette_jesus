@@ -7,8 +7,9 @@
 #include <ctime>
 #include <cmath>
 
-// Constants for controlling the number of particles and interaction forces
+// Constants
 #define MAX_PARTICLES 500
+#define BLOCK_SIZE 256
 
 // 2000 = 14 FPS
 // 1000 = 53 FPS
@@ -38,7 +39,7 @@ struct Particle {
     } while (0)
 
 // Cap speed of a particle
-__device__ void CapSpeed(float2& velocity, float maxSpeed, float minSpeed) {
+__device__ void CapSpeed(Vector2& velocity, float maxSpeed, float minSpeed) {
     float speed = sqrtf(velocity.x * velocity.x + velocity.y * velocity.y);
     if (speed > maxSpeed) {
         velocity.x = (velocity.x / speed) * maxSpeed;
@@ -66,13 +67,13 @@ __global__ void UpdateParticleInteractions(Particle* particles, int particleCoun
 
         if (distance < MAX_DISTANCE && distance > MIN_DISTANCE) {
             float force = -FORCE_STRENGTH / distance;
-            float2 direction = { dx / distance, dy / distance };
+            Vector2 direction = { dx / distance, dy / distance };
             p1.velocity.x += direction.x * force;
             p1.velocity.y += direction.y * force;
         }
 
         if (distance < MIN_COLLISION_DISTANCE) {
-            float2 collisionDirection = { dx / distance, dy / distance };
+            Vector2 collisionDirection = { dx / distance, dy / distance };
             p1.velocity.x -= collisionDirection.x * FORCE_STRENGTH;
             p1.velocity.y -= collisionDirection.y * FORCE_STRENGTH;
         }
@@ -108,8 +109,8 @@ int main() {
 
     // Device particles
     Particle* d_particles;
-    CUDA_CHECK(cudaMalloc(&d_particles, MAX_PARTICLES * sizeof(Particle)));
-    CUDA_CHECK(cudaMemcpy(d_particles, h_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyHostToDevice));
+    cudaMalloc(&d_particles, MAX_PARTICLES * sizeof(Particle));
+    cudaMemcpy(d_particles, h_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyHostToDevice);
 
     SetTargetFPS(144);
 
@@ -117,16 +118,16 @@ int main() {
         // Launch kernel
         int blocks = (MAX_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE;
         UpdateParticleInteractions << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES, screenWidth, screenHeight);
-        CUDA_CHECK(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
 
         // Copy updated particles back to host
-        CUDA_CHECK(cudaMemcpy(h_particles, d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost));
+        cudaMemcpy(h_particles, d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost);
 
         BeginDrawing();
         ClearBackground(BLACK);
 
         for (int i = 0; i < MAX_PARTICLES; i++) {
-            DrawCircleV({ h_particles[i].position.x, h_particles[i].position.y }, 7.0f, Color{ h_particles[i].color.x, h_particles[i].color.y, h_particles[i].color.z, h_particles[i].color.w });
+            DrawCircleV(h_particles[i].position, 7.0f, h_particles[i].color);
         }
 
         DrawText(TextFormat("FPS: %i", GetFPS()), 10, 10, 20, WHITE);
@@ -135,7 +136,7 @@ int main() {
 
     // Cleanup
     delete[] h_particles;
-    CUDA_CHECK(cudaFree(d_particles));
+    cudaFree(d_particles);
     CloseWindow();
 
     return 0;
