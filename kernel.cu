@@ -226,7 +226,7 @@ int main() {
             cudaMemcpy(h_particles.data(), d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost);
         }
 
-        BeginDrawing();
+        BeginDrawing(); // drawing
         ClearBackground(BLACK);
         for (const Particle& particle : h_particles) {
             DrawCircleV(particle.position, h_radius, particle.color);
