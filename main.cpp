@@ -2,20 +2,25 @@
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
+#include <vector>
+
+using namespace std;
 
 // Constants for controlling the number of particles and interaction forces
-#define MAX_PARTICLES 500
-
+#define MAX_PARTICLES 1000
 // 2000 = 14 FPS
 // 1000 = 53 FPS
 // 500 = 142 FPS
+const int screenWidth = 1440;
+const int screenHeight = 920;
 const float FORCE_STRENGTH = 5.0f;  // Attraction/repulsion force constant
 const float MIN_DISTANCE = 8.0f;   // Minimum distance for interaction (avoid division by zero)
 const float MAX_DISTANCE = 14.0f;  // Maximum distance for interaction (particles won't affect each other beyond this)
 const float MAX_SPEED = 2.5f;      // Maximum speed for particles
 const float MIN_SPEED = 0.1f;      // Minimum speed for particles
 const float MIN_COLLISION_DISTANCE = 10.0f; // Minimum distance for particles to collide and bounce
-
+const float radius = 9.0f;
+bool pause = 0;
 // Particle struct definition
 struct Particle {
     Vector2 position;
@@ -72,50 +77,117 @@ void HandleInteraction(Particle& p1, Particle& p2) {
         p2.velocity.x += collisionDirection.x * FORCE_STRENGTH;
         p2.velocity.y += collisionDirection.y * FORCE_STRENGTH;
     }
+    // Check if the particles are colliding (too close to each other)
+    if (distance < MIN_COLLISION_DISTANCE) {
+        // Calculate the direction vector for the collision response
+        Vector2 collisionDirection = { dx / distance, dy / distance };
+
+        // Apply repulsive force to both particles
+        p1.velocity.x -= collisionDirection.x * FORCE_STRENGTH;
+        p1.velocity.y -= collisionDirection.y * FORCE_STRENGTH;
+        p2.velocity.x += collisionDirection.x * FORCE_STRENGTH;
+        p2.velocity.y += collisionDirection.y * FORCE_STRENGTH;
+    }
+}
+
+void InitializeParticles(vector<Particle>& particles) {
+    for (Particle& particle : particles) {
+        particle.position = { (float)(rand() % screenWidth), (float)(rand() % screenHeight) };
+        particle.velocity = { (float)(rand() % 5 - 2), (float)(rand() % 5 - 2) };
+        particle.color = Color{ (unsigned char)(rand() % 256), (unsigned char)(rand() % 256),
+                                (unsigned char)(rand() % 256), 255 };
+    }
+}
+
+void UpdateParticles(vector<Particle>& particles) {
+
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+
+        particles[i].position.x += particles[i].velocity.x;
+        particles[i].position.y += particles[i].velocity.y;
+
+        // Cap the speed of the particles (both max and min speed)
+        CapSpeed(particles[i].velocity, MAX_SPEED, MIN_SPEED);
+
+        // Bounce off the edges of the screen (left, right, top, bottom)
+        if (particles[i].position.x >= screenWidth - radius || particles[i].position.x <= radius) {
+            particles[i].velocity.x *= -1.0;
+            if (particles[i].position.x >= screenWidth - radius) {
+                particles[i].position.x = screenWidth - radius;
+            }
+            else {
+                particles[i].position.x = radius;
+            }
+
+        }
+        if (particles[i].position.y >= screenHeight - radius || particles[i].position.y <= radius) {
+            particles[i].velocity.y *= -1.0;
+            if (particles[i].position.y >= screenHeight - radius) {
+                particles[i].position.y = screenHeight - radius;
+            }
+            else {
+                particles[i].position.y = radius;
+            }
+        }
+
+    }
+}
+
+
+void checkKeyBoardInput(vector<Particle>& particles) {
+
+    if (IsKeyPressed(KEY_DOWN)) {
+        for (Particle& particle : particles) {
+            particle.velocity = { 0.0,MAX_SPEED };
+        }
+    }
+    if (IsKeyPressed(KEY_UP)) {
+        for (Particle& particle : particles) {
+            particle.velocity = { 0.0,-MAX_SPEED };
+        }
+    }
+    if (IsKeyPressed(KEY_LEFT)) {
+        for (Particle& particle : particles) {
+            particle.velocity = { -MAX_SPEED,0.0 };
+        }
+    }
+    if (IsKeyPressed(KEY_RIGHT)) {
+        for (Particle& particle : particles) {
+            particle.velocity = { MAX_SPEED,0.0 };
+        }
+    }
+    if (IsKeyPressed(KEY_SPACE)) {
+        pause = !pause;
+    }
+
 }
 
 int main() {
     // Set up window
-    int screenWidth = 1440;
-    int screenHeight = 920;
     InitWindow(screenWidth, screenHeight, "Multiple Particle Interaction");
 
     srand(static_cast<unsigned int>(time(0)));
 
     // Array of particles
-    Particle particles[MAX_PARTICLES];
+    vector<Particle> particles(MAX_PARTICLES);
 
     // Initialize particles with random properties
-    for (int i = 0; i < MAX_PARTICLES; i++) {
-        particles[i].position = { (float)(rand() % screenWidth), (float)(rand() % screenHeight) };
-        particles[i].velocity = { (float)(rand() % 5 - 2), (float)(rand() % 5 - 2) };
-        particles[i].color = Color{ (unsigned char)(rand() % 256), (unsigned char)(rand() % 256),
-                                    (unsigned char)(rand() % 256), 255 };
-    }
+    InitializeParticles(particles);
 
     SetTargetFPS(144);
 
     while (!WindowShouldClose()) {
-        for (int i = 0; i < MAX_PARTICLES; i++) {
-            particles[i].position.x += particles[i].velocity.x;
-            particles[i].position.y += particles[i].velocity.y;
 
-            // Cap the speed of the particles (both max and min speed)
-            CapSpeed(particles[i].velocity, MAX_SPEED, MIN_SPEED);
+        checkKeyBoardInput(particles);
+        if (!pause) {
 
-            // Bounce off the edges of the screen (left, right, top, bottom)
-            if (particles[i].position.x >= screenWidth || particles[i].position.x <= 0) {
-                particles[i].velocity.x *= -1;
-            }
-            if (particles[i].position.y >= screenHeight || particles[i].position.y <= 0) {
-                particles[i].velocity.y *= -1;
-            }
-        }
+            UpdateParticles(particles);
 
-        // Particle interaction (attraction/repulsion and collision)
-        for (int i = 0; i < MAX_PARTICLES; i++) {
-            for (int j = i + 1; j < MAX_PARTICLES; j++) {
-                HandleInteraction(particles[i], particles[j]);
+            // Particle interaction (attraction/repulsion and collision)
+            for (int i = 0; i < MAX_PARTICLES; i++) {
+                for (int j = i + 1; j < MAX_PARTICLES; j++) {
+                    HandleInteraction(particles[i], particles[j]);
+                }
             }
         }
 
@@ -123,7 +195,7 @@ int main() {
         ClearBackground(BLACK);
 
         for (int i = 0; i < MAX_PARTICLES; i++) {
-            DrawCircleV(particles[i].position, 7.0f, particles[i].color);
+            DrawCircleV(particles[i].position, radius, particles[i].color);
         }
 
         DrawText(TextFormat("FPS: %i", GetFPS()), 10, 10, 20, WHITE);
