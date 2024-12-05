@@ -166,27 +166,95 @@ __global__ void InitializeParticlesKernel(Particle* particles, int numParticles,
 }
 
 
-// CUDA Kernel to check the Keyboard inputs and define the actions to take
-__global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount, bool keyDown, bool keyUp, bool keyLeft, bool keyRight, bool keySpace, bool* pause, float maxSpeed) {
+__global__ void CheckKeyBoardInputKernel(
+    Particle* particles,
+    int particleCount,
+    bool keyP,
+    bool keyDown,
+    bool keyUp,
+    bool keyLeft,
+    bool keyRight,
+    bool keyEnter,
+    bool keySpace,
+    bool keyM,
+    bool* pause,
+    bool* mode,
+    bool* flagWin,
+    bool* startFlag,
+    int* blackParticles,
+    float maxSpeed) {
+
     int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= particleCount) return;
+
+    __shared__ bool sharedPause;
+    __shared__ bool sharedMode;
+    __shared__ bool sharedStartFlag;
+    __shared__ bool sharedFlagWin;
+    __shared__ int sharedBlackParticles;
+
+    if (threadIdx.x == 0) {
+        sharedPause = *pause;
+        sharedMode = *mode;
+        sharedStartFlag = *startFlag;
+        sharedFlagWin = *flagWin;
+        sharedBlackParticles = *blackParticles;
+    }
+    __syncthreads();
 
     Particle& p = particles[i];
-    if (keyDown) {
-        p.velocity = { 0.0f, maxSpeed };
+
+    // Handle velocity adjustments based on key inputs
+    if (!sharedMode) {
+        if (keyP) {
+            p.velocity = { 0.0f, 0.0f };
+        }
+        if (keyDown) {
+            p.velocity = { 0.0f, maxSpeed };
+        }
+        if (keyUp) {
+            p.velocity = { 0.0f, -maxSpeed };
+        }
+        if (keyLeft) {
+            p.velocity = { -maxSpeed, 0.0f };
+        }
+        if (keyRight) {
+            p.velocity = { maxSpeed, 0.0f };
+        }
     }
-    if (keyUp) {
-        p.velocity = { 0.0f, -maxSpeed };
+
+    // Only thread 0 handles global state toggles to avoid race conditions
+    if (threadIdx.x == 0) {
+        if (keySpace) {
+            sharedPause = !sharedPause;
+        }
+        if (keyEnter) {
+            sharedBlackParticles = 0;
+            sharedStartFlag = 0;
+            sharedPause = 0;
+            sharedFlagWin = false;
+            // You would also need to reinitialize particles in another kernel
+        }
+        if (keyM) {
+            sharedMode = !sharedMode;
+            sharedFlagWin = false;
+            sharedStartFlag = 0;
+            sharedBlackParticles = 0;
+            // Reinitialize particles in another kernel
+        }
     }
-    if (keyLeft) {
-        p.velocity = { -maxSpeed, 0.0f };
-    }
-    if (keyRight) {
-        p.velocity = { maxSpeed, 0.0f };
-    }
-    if (keySpace) {
-        *pause = !(*pause);
+    __syncthreads();
+
+    // Update shared variables back to global memory
+    if (threadIdx.x == 0) {
+        *pause = sharedPause;
+        *mode = sharedMode;
+        *startFlag = sharedStartFlag;
+        *flagWin = sharedFlagWin;
+        *blackParticles = sharedBlackParticles;
     }
 }
+
 
 
 
@@ -216,9 +284,28 @@ int main() {
 
     // Pause state
     bool h_pause = false;  // Host pause state
+    bool h_mode = false;   // Host mode state
+    bool h_flagWin = false;
+    bool h_startFlag = false;
+    int h_blackParticles = 0;
+
     bool* d_pause;         // Device pause state
+    bool* d_mode;          // Device mode state
+    bool* d_flagWin;
+    bool* d_startFlag;
+    int* d_blackParticles;
+
     cudaMalloc(&d_pause, sizeof(bool));
+    cudaMalloc(&d_mode, sizeof(bool));
+    cudaMalloc(&d_flagWin, sizeof(bool));
+    cudaMalloc(&d_startFlag, sizeof(bool));
+    cudaMalloc(&d_blackParticles, sizeof(int));
+
     cudaMemcpy(d_pause, &h_pause, sizeof(bool), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mode, &h_mode, sizeof(bool), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_flagWin, &h_flagWin, sizeof(bool), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_startFlag, &h_startFlag, sizeof(bool), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_blackParticles, &h_blackParticles, sizeof(int), cudaMemcpyHostToDevice);
 
     // Copy constants to device
     cudaMemcpyToSymbol(d_screenWidth, &h_screenWidth, sizeof(int));
@@ -241,11 +328,14 @@ int main() {
 
 
         // Gather keyboard input
+        bool keyP = IsKeyPressed(KEY_P);
         bool keyDown = IsKeyDown(KEY_DOWN);
         bool keyUp = IsKeyDown(KEY_UP);
         bool keyLeft = IsKeyDown(KEY_LEFT);
         bool keyRight = IsKeyDown(KEY_RIGHT);
-        bool keySpace = IsKeyPressed(KEY_SPACE);  // Check if space is pressed
+        bool keyEnter = IsKeyPressed(KEY_ENTER);
+        bool keySpace = IsKeyPressed(KEY_SPACE);
+        bool keyM = IsKeyPressed(KEY_M);
 
         // Update the pause state if SPACE is pressed
         if (keySpace) {
@@ -273,7 +363,13 @@ int main() {
             cudaDeviceSynchronize();
 
             // Update velocities based on keyboard input
-            CheckKeyBoardInputKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES, keyDown, keyUp, keyLeft, keyRight, keySpace, d_pause, h_MAX_SPEED);
+            CheckKeyBoardInputKernel << <blocks, BLOCK_SIZE >> > (
+                d_particles,
+                MAX_PARTICLES,
+                keyP, keyDown, keyUp, keyLeft, keyRight, keyEnter, keySpace, keyM,
+                d_pause, d_mode, d_flagWin, d_startFlag, d_blackParticles,
+                h_MAX_SPEED);
+
             cudaDeviceSynchronize();
 
 
