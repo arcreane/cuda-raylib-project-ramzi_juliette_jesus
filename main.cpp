@@ -6,18 +6,13 @@
 
 using namespace std;
 
-
 // Constants for controlling the number of particles and interaction forces
-#define MAX_PARTICLES 1000
-
+#define MAX_PARTICLES 500
 // 2000 = 14 FPS
 // 1000 = 53 FPS
 // 500 = 142 FPS
-
-// Constants for display and shape
 const int screenWidth = 1440;
 const int screenHeight = 920;
-// Constants for interaction and collision
 const float radius = 9.0f;          // radius of balls
 const float FORCE_STRENGTH = 5.0f;  // Attraction/repulsion force constant
 const float MIN_DISTANCE = 2.0f * radius;   // Minimum distance for interaction (avoid division by zero)
@@ -25,8 +20,7 @@ const float MAX_DISTANCE = 2.8f * radius;  // Maximum distance for interaction (
 const float MAX_SPEED = 3.5f;      // Maximum speed for particles
 const float MIN_SPEED = 0.1f;      // Minimum speed for particles
 const float MIN_COLLISION_DISTANCE = 2.5f * radius; // Minimum distance for particles to collide and bounce
-// Radius of force field created when user click on the screen
-const float radius_force = 80.0f; 
+const float radius_force = 80.0f;   // Radius of force field created when user click on the screen
 
 int BLACK_PARTICLES = 0;
 float radius_game = 0;
@@ -34,7 +28,6 @@ bool pause = 0;
 bool flag_win = 0;
 bool mode = 0;
 bool start_flag = 0;
-
 // Particle struct definition
 struct Particle {
     Vector2 position;
@@ -115,7 +108,6 @@ void HandleInteraction(Particle& p1, Particle& p2) {
 
 }
 
-//Function to initialize the particles with random values
 void InitializeParticles(vector<Particle>& particles) {
     for (Particle& particle : particles) {
         particle.position = { (float)(rand() % screenWidth), (float)(rand() % screenHeight) };
@@ -125,7 +117,6 @@ void InitializeParticles(vector<Particle>& particles) {
     }
 }
 
-//Function to update the position of the particles and control the collision with the walls
 void UpdateParticles(vector<Particle>& particles) {
 
     for (int i = 0; i < MAX_PARTICLES; i++) {
@@ -163,7 +154,7 @@ void UpdateParticles(vector<Particle>& particles) {
     }
 }
 
-//Function to check the Keyboard inputs and define the actions to take
+
 void checkKeyBoardInput(vector<Particle>& particles) {
 
     if (!mode) {
@@ -217,6 +208,7 @@ void checkKeyBoardInput(vector<Particle>& particles) {
         mode = !mode;
         flag_win = false;
         start_flag = 0;
+        pause = 0;
         InitializeParticles(particles);
         BLACK_PARTICLES = 0;
     }
@@ -287,6 +279,7 @@ int main() {
             for (int i = 0; i < MAX_PARTICLES; i++) {
                 DrawCircleV(particles[i].position, radius, particles[i].color);
             }
+
 
         }
 
