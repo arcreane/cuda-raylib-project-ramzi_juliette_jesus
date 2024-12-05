@@ -27,7 +27,7 @@ float h_radius = 7.0f;
 float h_FORCE_STRENGTH = 5.0f; // Attraction/repulsion force constant 
 float h_MIN_DISTANCE = 2 * h_radius* 2 * h_radius; // Minimum distance for interaction (avoid division by zero)
 float h_MAX_DISTANCE = 2.8 * h_radius* 2.8 * h_radius; // Maximum distance for interaction (particles won't affect each other beyond this)
-float h_MAX_SPEED = 2.5f; // Maximum speed for particles
+float h_MAX_SPEED = 4.0f; // Maximum speed for particles
 float h_MIN_SPEED = 0.1f; // Minimum speed for particles
 float h_MIN_COLLISION_DISTANCE = 2.5 * h_radius * 2.5 * h_radius; // Minimum distance for particles to collide and bounce
 
