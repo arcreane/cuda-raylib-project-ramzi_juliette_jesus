@@ -22,11 +22,14 @@ const float MIN_SPEED = 0.1f;      // Minimum speed for particles
 const float MIN_COLLISION_DISTANCE = 2.5f * radius; // Minimum distance for particles to collide and bounce
 const float radius_force = 80.0f;   // Radius of force field created when user click on the screen
 
-
+// Flags and variables to control the flow of the game 
+int BLACK_PARTICLES = 0;
 float radius_game = 0;
 bool pause = 0;
+bool flag_win = 0;
 bool mode = 0;
 bool start_flag = 0;
+
 // Particle struct definition
 struct Particle {
     Vector2 position;
@@ -197,14 +200,16 @@ void checkKeyBoardInput(vector<Particle>& particles) {
     if (IsKeyPressed(KEY_ENTER)) {
 
         InitializeParticles(particles);
-
+        start_flag = 0;
+        pause = 0;
+        flag_win = false;
     }
 
     if (IsKeyPressed(KEY_M)) {
         mode = !mode;
+        flag_win = false;
         start_flag = 0;
         InitializeParticles(particles);
-
     }
 
 }
@@ -278,7 +283,6 @@ int main() {
 
         else {
 
-
             BeginDrawing();
             ClearBackground(BLACK);
 
@@ -349,31 +353,60 @@ int main() {
             }
             else {
 
-                // Define the box dimensions
-                int boxWidth = 200;
-                int boxHeight = 100;
-                int boxX = (screenWidth - boxWidth) / 2;
-                int boxY = (screenHeight - boxHeight) / 2;
 
-                // Draw the message "Terminé" centered in the box
-                const char* message = "!!!! CONGRATS !!!!";
-                int fontSize = 50;
-                int textWidth = MeasureText(message, fontSize);
-                int textX = boxX + (boxWidth - textWidth) / 2;
-                int textY = boxY + (boxHeight - fontSize) / 2;
+                if (!flag_win) {
 
-                DrawText(message, textX, textY, fontSize, GREEN);
+                    if (!pause) {
+
+
+
+                        // Particle interaction (attraction/repulsion and collision)
+                        for (int i = 0; i < MAX_PARTICLES; i++) {
+                            for (int j = i + 1; j < MAX_PARTICLES; j++) {
+                                HandleInteraction(particles[i], particles[j]);
+                            }
+                        }
+
+                        UpdateParticles(particles);
+
+                    }
+
+                    DrawCircleV(MousePosition, radius_game, RED);
+                    for (int i = 0; i < MAX_PARTICLES; i++) {
+                        DrawCircleV(particles[i].position, radius, particles[i].color);
+                    }
+
+                    DrawText(TextFormat("SCORE: %i", BLACK_PARTICLES), screenWidth - 180, 40, 30, WHITE);
+                }
+                else {
+                    // Define the box dimensions
+                    int boxWidth = 200;
+                    int boxHeight = 100;
+                    int boxX = (screenWidth - boxWidth) / 2;
+                    int boxY = (screenHeight - boxHeight) / 2;
+
+                    // Draw the message "Terminé" centered in the box
+                    const char* message = "!!!! CONGRATS !!!!";
+                    int fontSize = 50;
+                    int textWidth = MeasureText(message, fontSize);
+                    int textX = boxX + (boxWidth - textWidth) / 2;
+                    int textY = boxY + (boxHeight - fontSize) / 2;
+
+                    DrawText(message, textX, textY, fontSize, GREEN);
+
+                }
 
             }
 
+
+
         }
+
         DrawText(TextFormat("FPS: %i", GetFPS()), 10, 10, 20, WHITE);
         EndDrawing();
-    }
 
+    }
 
     CloseWindow();
     return 0;
-
 }
-
