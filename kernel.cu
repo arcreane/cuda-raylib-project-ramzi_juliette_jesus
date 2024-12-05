@@ -288,6 +288,8 @@ int main() {
     bool h_flagWin = false;
     bool h_startFlag = false;
     int h_blackParticles = 0;
+    float h_radius_game = 0.0f; // Declare as float, not float*
+
 
     bool* d_pause;         // Device pause state
     bool* d_mode;          // Device mode state
@@ -359,31 +361,126 @@ int main() {
         // Read updated pause and mode states back to host
         cudaMemcpy(&h_pause, d_pause, sizeof(bool), cudaMemcpyDeviceToHost);
         cudaMemcpy(&h_mode, d_mode, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&h_flagWin, d_flagWin, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&h_startFlag, d_startFlag, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&h_blackParticles, d_blackParticles, sizeof(bool), cudaMemcpyDeviceToHost);
 
-        if (!h_pause) {
-            
-
-            // Update particles on GPU
-            UpdateParticlesKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
-            cudaDeviceSynchronize();
-
-            // Handle interactions on GPU
-            HandleInteractionsKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
-            cudaDeviceSynchronize();
+        if (!h_mode)
+        {
+            if (!h_pause) {
 
 
+                // Update particles on GPU
+                UpdateParticlesKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
+                cudaDeviceSynchronize();
+
+                // Handle interactions on GPU
+                HandleInteractionsKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
+                cudaDeviceSynchronize();
 
 
-            // Copy updated particles back to host
-            cudaMemcpy(h_particles.data(), d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost);
+
+
+                // Copy updated particles back to host
+                cudaMemcpy(h_particles.data(), d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost);
+            }
+
+            BeginDrawing();
+            ClearBackground(BLACK);
+            for (const Particle& particle : h_particles) {
+                DrawCircleV(particle.position, h_radius, particle.color);
+            }
+            DrawText(TextFormat("FPS: %i", GetFPS()), 10, 10, 20, WHITE);
+        }
+        else
+        {
+            BeginDrawing();
+            ClearBackground(BLACK);
+
+            if (!h_startFlag) {
+                // Draw level selection boxes
+                int boxWidth = 200;
+                int boxHeight = 100;
+                float boxX = (h_screenWidth - boxWidth) / 2;
+                float boxY = (h_screenHeight - boxHeight) / 2;
+
+                Rectangle rect1 = { boxX, boxY - 120.0f, static_cast<float>(boxWidth), static_cast<float>(boxHeight) };
+                Rectangle rect2 = { boxX, boxY, static_cast<float>(boxWidth), static_cast<float>(boxHeight) };
+                Rectangle rect3 = { boxX, boxY + 120.0f, static_cast<float>(boxWidth), static_cast<float>(boxHeight) };
+
+
+                // Draw boxes and their labels
+                DrawRectangle(rect1.x, rect1.y, rect1.width, rect1.height, BLUE);
+                DrawRectangle(rect2.x, rect2.y, rect2.width, rect2.height, VIOLET);
+                DrawRectangle(rect3.x, rect3.y, rect3.width, rect3.height, ORANGE);
+                DrawRectangleLines(rect1.x, rect1.y, rect1.width, rect1.height, GRAY);
+                DrawRectangleLines(rect2.x, rect2.y, rect2.width, rect2.height, GRAY);
+                DrawRectangleLines(rect3.x, rect3.y, rect3.width, rect3.height, GRAY);
+
+                const char* message = "CHOOSE YOUR LEVEL";
+                int fontSize = 20;
+                int textWidth = MeasureText(message, fontSize);
+                DrawText(message, (h_screenWidth - textWidth) / 2, boxY - 200, fontSize, WHITE);
+
+                const char* levels[3] = { "EASY", "MEDIUM", "LEGENDARY" };
+                Rectangle rects[3] = { rect1, rect2, rect3 };
+                float radii[3] = { 80.0f, 50.0f, 30.0f };
+
+                for (int i = 0; i < 3; ++i) {
+                    int textWidth = MeasureText(levels[i], fontSize);
+                    DrawText(levels[i], rects[i].x + (rects[i].width - textWidth) / 2,
+                        rects[i].y + (rects[i].height - fontSize) / 2, fontSize, WHITE);
+
+                    if (CheckCollisionPointRec(mousePosition, rects[i]) &&
+                        IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                        h_startFlag = true;
+                        h_radius_game = radii[i];
+                    }
+                }
+            }
+            else {
+                if (!h_flagWin) {
+                    if (!pause) {
+                        // Update particles and interactions in game mode
+                        UpdateParticlesKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
+                        cudaDeviceSynchronize();
+
+                        HandleInteractionsKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
+                        cudaDeviceSynchronize();
+
+                        // Copy particles back to host for rendering
+                        cudaMemcpy(h_particles.data(), d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost);
+                    }
+
+                    // Render particles and score
+                    BeginDrawing();
+                    ClearBackground(BLACK);
+                    for (const Particle& particle : h_particles) {
+                        DrawCircleV(particle.position, h_radius, particle.color);
+                    }
+                    DrawText(TextFormat("SCORE: %i", h_blackParticles), h_screenWidth - 180, 40, 30, WHITE);
+                    EndDrawing();
+
+                    // Check win condition
+                    h_flagWin = (h_blackParticles == MAX_PARTICLES);
+                }
+                else {
+                    // Display win message
+                    int boxWidth = 300;
+                    int boxHeight = 100;
+                    int boxX = (h_screenWidth - boxWidth) / 2;
+                    int boxY = (h_screenHeight - boxHeight) / 2;
+
+                    const char* winMessage = "!!!! CONGRATS !!!!";
+                    int fontSize = 50;
+                    int textWidth = MeasureText(winMessage, fontSize);
+
+                    DrawText(winMessage, boxX + (boxWidth - textWidth) / 2,
+                        boxY + (boxHeight - fontSize) / 2, fontSize, GREEN);
+                }
+            }
         }
 
-        BeginDrawing();
-        ClearBackground(BLACK);
-        for (const Particle& particle : h_particles) {
-            DrawCircleV(particle.position, h_radius, particle.color);
-        }
-        DrawText(TextFormat("FPS: %i", GetFPS()), 10, 10, 20, WHITE);
         EndDrawing();
     }
 
