@@ -1,5 +1,7 @@
 ﻿#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#include <curand_kernel.h>
+
 
 #include <raylib.h>
 #include <cstdlib>
@@ -143,15 +145,26 @@ __global__ void ForceFieldKernel(Particle* particles, int numParticles, Vector2 
     }
 }
 
+// CUDA Kernel to initialize particles with random values
+__global__ void InitializeParticlesKernel(Particle* particles, int numParticles, int screenWidth, int screenHeight, unsigned int seed) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= numParticles) return;
 
-// Function to initialize the particles with random values
-void InitializeParticles(std::vector<Particle>& particles) {
-    for (Particle& particle : particles) {
-        particle.position = { (float)(rand() % h_screenWidth), (float)(rand() % h_screenHeight) };
-        particle.velocity = { (float)(rand() % 5 - 2), (float)(rand() % 5 - 2) };
-        particle.color = Color{ (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), 255 };
-    }
+    // Initialize curand state
+    curandState state;
+    curand_init(seed, i, 0, &state);
+
+    // Assign random position, velocity, and color
+    particles[i].position = { curand_uniform(&state) * screenWidth, curand_uniform(&state) * screenHeight };
+    particles[i].velocity = { curand_uniform(&state) * 5.0f - 2.0f, curand_uniform(&state) * 5.0f - 2.0f };
+    particles[i].color = Color{
+        (unsigned char)(curand_uniform(&state) * 256),
+        (unsigned char)(curand_uniform(&state) * 256),
+        (unsigned char)(curand_uniform(&state) * 256),
+        255
+    };
 }
+
 
 // CUDA Kernel to check the Keyboard inputs and define the actions to take
 __global__ void CheckKeyBoardInputKernel(Particle* particles, int particleCount, bool keyDown, bool keyUp, bool keyLeft, bool keyRight, bool keySpace, bool* pause, float maxSpeed) {
@@ -186,12 +199,20 @@ int main() {
 
     // Host particles
     std::vector<Particle> h_particles(MAX_PARTICLES);
-    InitializeParticles(h_particles);
 
     // Device particles
     Particle* d_particles;
     cudaMalloc(&d_particles, MAX_PARTICLES * sizeof(Particle));
-    cudaMemcpy(d_particles, h_particles.data(), MAX_PARTICLES * sizeof(Particle), cudaMemcpyHostToDevice);
+
+    // Initialize particles on the GPU
+    unsigned int seed = static_cast<unsigned int>(time(0)); // Random seed for curand
+    int blocks = (MAX_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    InitializeParticlesKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES, h_screenWidth, h_screenHeight, seed);
+    cudaDeviceSynchronize();
+
+    // Copy initialized particles back to host for rendering
+    cudaMemcpy(h_particles.data(), d_particles, MAX_PARTICLES * sizeof(Particle), cudaMemcpyDeviceToHost);
+
 
     // Pause state
     bool h_pause = false;  // Host pause state
