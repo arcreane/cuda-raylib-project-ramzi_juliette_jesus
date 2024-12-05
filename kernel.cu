@@ -17,6 +17,7 @@ __constant__ float d_MAX_SPEED;
 __constant__ float d_MIN_SPEED;
 __constant__ float d_MIN_COLLISION_DISTANCE;
 __constant__ float d_radius;
+__constant__ float d_radius_force;
 
 // Constants for display and shape
 int h_screenWidth = 1920;
@@ -30,6 +31,7 @@ float h_MAX_DISTANCE = 2.8 * h_radius* 2.8 * h_radius; // Maximum distance for i
 float h_MAX_SPEED = 4.0f; // Maximum speed for particles
 float h_MIN_SPEED = 0.1f; // Minimum speed for particles
 float h_MIN_COLLISION_DISTANCE = 2.5 * h_radius * 2.5 * h_radius; // Minimum distance for particles to collide and bounce
+const float radius_force = 80.0f;
 
 // Flag to pause
 bool pause = 0;
@@ -123,6 +125,25 @@ __global__ void HandleInteractionsKernel(Particle* particles, int particleCount)
     }
 }
 
+__global__ void ForceFieldKernel(Particle* particles, int numParticles, Vector2 mousePosition, float radiusForce, float maxSpeed) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i < numParticles) {
+        float dx = particles[i].position.x - mousePosition.x;
+        float dy = particles[i].position.y - mousePosition.y;
+        float distance = sqrtf(dx * dx + dy * dy);
+
+        if (distance <= radiusForce) {
+            float nx = dx / distance;
+            float ny = dy / distance;
+
+            particles[i].velocity.x = nx * maxSpeed;
+            particles[i].velocity.y = ny * maxSpeed;
+        }
+    }
+}
+
+
 // Function to initialize the particles with random values
 void InitializeParticles(std::vector<Particle>& particles) {
     for (Particle& particle : particles) {
@@ -188,10 +209,15 @@ int main() {
     cudaMemcpyToSymbol(d_MIN_SPEED, &h_MIN_SPEED, sizeof(float));
     cudaMemcpyToSymbol(d_MIN_COLLISION_DISTANCE, &h_MIN_COLLISION_DISTANCE, sizeof(float));
     cudaMemcpyToSymbol(d_radius, &h_radius, sizeof(float));
+    cudaMemcpyToSymbol(d_radius_force, &radius_force, sizeof(float));
 
     SetTargetFPS(144);
 
     while (!WindowShouldClose()) {
+
+        // Get mouse position
+        Vector2 mousePosition = GetMousePosition();
+
 
         // Gather keyboard input
         bool keyDown = IsKeyDown(KEY_DOWN);
@@ -205,9 +231,17 @@ int main() {
             h_pause = !h_pause;  // Toggle pause state on host
             cudaMemcpy(d_pause, &h_pause, sizeof(bool), cudaMemcpyHostToDevice);  // Sync pause state to device
         }
+        int blocks = (MAX_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
+        // Handle mouse click for force field
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            ForceFieldKernel << <blocks, BLOCK_SIZE >> > (
+                d_particles, MAX_PARTICLES, mousePosition, radius_force, h_MAX_SPEED);
+            cudaDeviceSynchronize();
+        }
 
         if (!h_pause) {
-            int blocks = (MAX_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            
 
             // Update particles on GPU
             UpdateParticlesKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
