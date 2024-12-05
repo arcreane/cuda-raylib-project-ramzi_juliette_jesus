@@ -24,7 +24,7 @@ int h_screenHeight = 920;
 float h_radius = 7.0f;
 
 // Constants for interaction and collision
-float h_FORCE_STRENGTH = 5.0f; // Attraction/repulsion force constant
+float h_FORCE_STRENGTH = 5.0f; // Attraction/repulsion force constant 
 float h_MIN_DISTANCE = 2 * h_radius* 2 * h_radius; // Minimum distance for interaction (avoid division by zero)
 float h_MAX_DISTANCE = 2.8 * h_radius* 2.8 * h_radius; // Maximum distance for interaction (particles won't affect each other beyond this)
 float h_MAX_SPEED = 2.5f; // Maximum speed for particles
