@@ -398,18 +398,18 @@ int main() {
             ClearBackground(BLACK);
 
             if (!h_startFlag) {
-                // Draw level selection boxes
+
+                // Define the box dimensions
                 int boxWidth = 200;
                 int boxHeight = 100;
-                float boxX = (h_screenWidth - boxWidth) / 2;
-                float boxY = (h_screenHeight - boxHeight) / 2;
+                float boxX = (h_screenWidth - boxWidth) / 2.0f;
+                float boxY = (h_screenHeight - boxHeight) / 2.0f;
 
-                Rectangle rect1 = { boxX, boxY - 120.0f, static_cast<float>(boxWidth), static_cast<float>(boxHeight) };
+                Rectangle rect1 = { boxX, boxY - 120, static_cast<float>(boxWidth), static_cast<float>(boxHeight) };
                 Rectangle rect2 = { boxX, boxY, static_cast<float>(boxWidth), static_cast<float>(boxHeight) };
-                Rectangle rect3 = { boxX, boxY + 120.0f, static_cast<float>(boxWidth), static_cast<float>(boxHeight) };
+                Rectangle rect3 = { boxX, boxY + 120, static_cast<float>(boxWidth), static_cast<float>(boxHeight) };
 
-
-                // Draw boxes and their labels
+                // Draw the boxes
                 DrawRectangle(rect1.x, rect1.y, rect1.width, rect1.height, BLUE);
                 DrawRectangle(rect2.x, rect2.y, rect2.width, rect2.height, VIOLET);
                 DrawRectangle(rect3.x, rect3.y, rect3.width, rect3.height, ORANGE);
@@ -417,27 +417,53 @@ int main() {
                 DrawRectangleLines(rect2.x, rect2.y, rect2.width, rect2.height, GRAY);
                 DrawRectangleLines(rect3.x, rect3.y, rect3.width, rect3.height, GRAY);
 
+                // Draw the message to choose the level
                 const char* message = "CHOOSE YOUR LEVEL";
                 int fontSize = 20;
                 int textWidth = MeasureText(message, fontSize);
                 DrawText(message, (h_screenWidth - textWidth) / 2, boxY - 200, fontSize, WHITE);
 
-                const char* levels[3] = { "EASY", "MEDIUM", "LEGENDARY" };
-                Rectangle rects[3] = { rect1, rect2, rect3 };
-                float radii[3] = { 80.0f, 50.0f, 30.0f };
+                // Draw the message "EASY" centered in the first box
+                const char* message1 = "EASY";
+                int textWidth1 = MeasureText(message1, fontSize);
+                int textX = rect1.x + (rect1.width - textWidth1) / 2;
+                int textY = rect1.y + (rect1.height - fontSize) / 2;
+                DrawText(message1, textX, textY, fontSize, WHITE);
 
-                for (int i = 0; i < 3; ++i) {
-                    int textWidth = MeasureText(levels[i], fontSize);
-                    DrawText(levels[i], rects[i].x + (rects[i].width - textWidth) / 2,
-                        rects[i].y + (rects[i].height - fontSize) / 2, fontSize, WHITE);
+                // Draw the message "MEDIUM" centered in the second box
+                const char* message2 = "MEDIUM";
+                int textWidth2 = MeasureText(message2, fontSize);
+                int textX2 = rect2.x + (rect2.width - textWidth2) / 2;
+                int textY2 = rect2.y + (rect2.height - fontSize) / 2;
+                DrawText(message2, textX2, textY2, fontSize, WHITE);
 
-                    if (CheckCollisionPointRec(mousePosition, rects[i]) &&
-                        IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                // Draw the message "LEGENDARY" centered in the third box
+                const char* message3 = "LEGENDARY";
+                int textWidth3 = MeasureText(message3, fontSize);
+                int textX3 = rect3.x + (rect3.width - textWidth3) / 2;
+                int textY3 = rect3.y + (rect3.height - fontSize) / 2;
+                DrawText(message3, textX3, textY3, fontSize, WHITE);
+
+                if (CheckCollisionPointRec(mousePosition, rect1)) {
+                    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                         h_startFlag = true;
-                        h_radius_game = radii[i];
+                        h_radius_game = 80.0f;
+                    }
+                }
+                if (CheckCollisionPointRec(mousePosition, rect2)) {
+                    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                        h_startFlag = true;
+                        h_radius_game = 50.0f;
+                    }
+                }
+                if (CheckCollisionPointRec(mousePosition, rect3)) {
+                    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                        h_startFlag = true;
+                        h_radius_game = 30.0f;
                     }
                 }
             }
+
             else {
                 if (!h_flagWin) {
                     if (!pause) {
