@@ -22,14 +22,12 @@ const float MIN_SPEED = 0.1f;      // Minimum speed for particles
 const float MIN_COLLISION_DISTANCE = 2.5f * radius; // Minimum distance for particles to collide and bounce
 const float radius_force = 80.0f;   // Radius of force field created when user click on the screen
 
-// Flags and variables to control the flow of the game 
 int BLACK_PARTICLES = 0;
 float radius_game = 0;
 bool pause = 0;
 bool flag_win = 0;
 bool mode = 0;
 bool start_flag = 0;
-
 // Particle struct definition
 struct Particle {
     Vector2 position;
@@ -200,6 +198,7 @@ void checkKeyBoardInput(vector<Particle>& particles) {
     if (IsKeyPressed(KEY_ENTER)) {
 
         InitializeParticles(particles);
+        BLACK_PARTICLES = 0;
         start_flag = 0;
         pause = 0;
         flag_win = false;
@@ -210,6 +209,7 @@ void checkKeyBoardInput(vector<Particle>& particles) {
         flag_win = false;
         start_flag = 0;
         InitializeParticles(particles);
+        BLACK_PARTICLES = 0;
     }
 
 }
@@ -282,6 +282,7 @@ int main() {
         }
 
         else {
+
 
             BeginDrawing();
             ClearBackground(BLACK);
@@ -369,6 +370,28 @@ int main() {
 
                         UpdateParticles(particles);
 
+                        BLACK_PARTICLES = 0;
+
+                        for (int i = 0; i < MAX_PARTICLES; i++) {
+                            if (particles[i].color.a == 0) {
+                                BLACK_PARTICLES++;
+                            }
+
+                        }
+
+                        for (int i = 0; i < MAX_PARTICLES; i++) {
+                            if (particles[i].position.x >= MousePosition.x - radius_game && particles[i].position.x <= MousePosition.x + radius_game
+                                && particles[i].position.y >= MousePosition.y - radius_game && particles[i].position.y <= MousePosition.y + radius_game) {
+                                particles[i].color.a = 0;
+                            }
+
+                        }
+                        for (int i = 0; i < MAX_PARTICLES; i++) {
+                            DrawCircleV(particles[i].position, radius, particles[i].color);
+                        }
+
+                        flag_win = BLACK_PARTICLES == MAX_PARTICLES;
+
                     }
 
                     DrawCircleV(MousePosition, radius_game, RED);
@@ -403,6 +426,7 @@ int main() {
         }
 
         DrawText(TextFormat("FPS: %i", GetFPS()), 10, 10, 20, WHITE);
+
         EndDrawing();
 
     }
