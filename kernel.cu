@@ -337,11 +337,6 @@ int main() {
         bool keySpace = IsKeyPressed(KEY_SPACE);
         bool keyM = IsKeyPressed(KEY_M);
 
-        // Update the pause state if SPACE is pressed
-        if (keySpace) {
-            h_pause = !h_pause;  // Toggle pause state on host
-            cudaMemcpy(d_pause, &h_pause, sizeof(bool), cudaMemcpyHostToDevice);  // Sync pause state to device
-        }
         int blocks = (MAX_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
         // Handle mouse click for force field
@@ -350,6 +345,20 @@ int main() {
                 d_particles, MAX_PARTICLES, mousePosition, radius_force, h_MAX_SPEED);
             cudaDeviceSynchronize();
         }
+
+        // Update velocities based on keyboard input
+        CheckKeyBoardInputKernel << <blocks, BLOCK_SIZE >> > (
+            d_particles,
+            MAX_PARTICLES,
+            keyP, keyDown, keyUp, keyLeft, keyRight, keyEnter, keySpace, keyM,
+            d_pause, d_mode, d_flagWin, d_startFlag, d_blackParticles,
+            h_MAX_SPEED);
+
+        cudaDeviceSynchronize();
+
+        // Read updated pause and mode states back to host
+        cudaMemcpy(&h_pause, d_pause, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&h_mode, d_mode, sizeof(bool), cudaMemcpyDeviceToHost);
 
         if (!h_pause) {
             
@@ -362,15 +371,7 @@ int main() {
             HandleInteractionsKernel << <blocks, BLOCK_SIZE >> > (d_particles, MAX_PARTICLES);
             cudaDeviceSynchronize();
 
-            // Update velocities based on keyboard input
-            CheckKeyBoardInputKernel << <blocks, BLOCK_SIZE >> > (
-                d_particles,
-                MAX_PARTICLES,
-                keyP, keyDown, keyUp, keyLeft, keyRight, keyEnter, keySpace, keyM,
-                d_pause, d_mode, d_flagWin, d_startFlag, d_blackParticles,
-                h_MAX_SPEED);
 
-            cudaDeviceSynchronize();
 
 
             // Copy updated particles back to host
